@@ -1,0 +1,2 @@
+^xxx\.vncert\.vn$
+\.xxx\.vncert\.vn$
