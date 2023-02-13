@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -44,7 +45,7 @@ var httpClientLocal = &fasthttp.Client{
 		if port == "" || port == ":" {
 			port = "80"
 		}
-		return fasthttp.DialDualStackTimeout("["+hostname+"]:"+port, dialTimeout)
+		return localDialFunc("tcp", "["+hostname+"]:"+port)
 	},
 }
 
@@ -71,32 +72,7 @@ var httpClientSocks = &fasthttp.Client{
 	},
 }
 
-func copy2(dst net.Conn, src net.Conn) {
-	defer func() {
-		time.Sleep(time.Second)
-		dst.Close()
-		src.Close()
-	}()
-	buf := make([]byte, 4096)
-	for {
-		n, err := src.Read(buf)
-		if err != nil {
-			// log.Println(`Read err:`, err)
-			return
-		}
-		// log.Println(src.RemoteAddr().String(), `=>`, dst.RemoteAddr().String(), `:`, len(buf[:n]))
-		_, err = dst.Write(buf[:n])
-		if err != nil {
-			// log.Println(`Write errL`, err)
-			return
-		}
-	}
-}
-
 func httpsHandler(ctx *fasthttp.RequestCtx, remoteAddr string, isMustProxify bool) error {
-	if ctx.Hijacked() {
-		return nil
-	}
 	var r net.Conn
 	if isMustProxify {
 		var err error
@@ -115,8 +91,10 @@ func httpsHandler(ctx *fasthttp.RequestCtx, remoteAddr string, isMustProxify boo
 	ctx.Response.Header.Set("Connection", "keep-alive")
 	ctx.Response.Header.Set("Keep-Alive", "timeout=120, max=5")
 	ctx.Hijack(func(clientConn net.Conn) {
-		go copy2(r, clientConn)
-		copy2(clientConn, r)
+		defer clientConn.Close()
+		defer r.Close()
+		go io.Copy(r, clientConn)
+		io.Copy(clientConn, r)
 	})
 	return nil
 }

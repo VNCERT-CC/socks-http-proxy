@@ -1,2 +1,3 @@
 ^xxx\.vncert\.vn$
 \.xxx\.vncert\.vn$
+^xn--lun-lna\.vn$
