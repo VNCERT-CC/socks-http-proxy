@@ -108,6 +108,9 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 
 	host := string(ctx.Host())
 	if len(host) < 1 {
+		host = string(ctx.Path())[1:]
+	}
+	if len(host) < 1 {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		log.Println("Reject: Empty host")
 		return
